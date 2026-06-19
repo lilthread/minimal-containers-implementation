@@ -35,6 +35,7 @@ enable_testing()
 add_executable(tests
     tests/main.cpp
     tests/vector_test.cpp
+    tests/unique_ptr_test.cpp
 
 )
 

@@ -1,3 +1,4 @@
+#pragma once
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -17,29 +18,24 @@ class Vector final {
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 public:
   ~Vector() noexcept { delete[] _ptr; }
-  Vector() = default;
-  Vector(Vector&& other) noexcept
-  : _ptr(other._ptr), _capacity(other._capacity), _length(other._length) {
-    other._ptr = nullptr;
-    other._length = 0;
-    other._capacity = 0;
+  constexpr Vector() = default;
+  Vector(Vector&& other) noexcept {
+    _ptr = std::exchange(other._ptr, nullptr);
+    _capacity = std::exchange(other._capacity, 0);
+    _length = std::exchange(other._length, 0);
   }
   Vector(const Vector& other) noexcept {
     _ptr = new T[other._capacity];
     std::copy(other._ptr, other._ptr + other._length, _ptr);
     _capacity = other._capacity;
     _length = other._length;
-
   }
   Vector &operator=(Vector&& other) noexcept {
     if (this == &other)
       return *this;
-    _ptr = other._ptr;
-    _capacity = other._capacity;
-    _length = other._length;
-    other._ptr = nullptr;
-    other._length = 0;
-    other._capacity = 0;
+    _ptr = std::exchange(other._ptr, nullptr);
+    _capacity = std::exchange(other._capacity, 0);
+    _length = std::exchange(other._length, 0);
     return *this;
   }
   Vector &operator=(const Vector& other) noexcept {
@@ -52,31 +48,31 @@ public:
     return *this;
   }
   // Element access 
-  constexpr T& front() { return _ptr[0]; } // UB if empty
-  constexpr T const& front() const { return _ptr[0]; } // UB if empty
-  constexpr T& back() { return _ptr[_length - 1]; }
-  constexpr T const& back() const { return _ptr[_length]; }
+  T& front() { return _ptr[0]; } // UB if empty
+  T const& front() const { return _ptr[0]; } // UB if empty
+  T& back() { return _ptr[_length - 1]; }
+  T const& back() const { return _ptr[_length]; }
 
-  constexpr T& operator[](std::size_t idx) { return _ptr[idx]; }
-  constexpr T const& operator[](std::size_t idx) const { return _ptr[idx]; }
+  T& operator[](std::size_t idx) { return _ptr[idx]; }
+  T const& operator[](std::size_t idx) const { return _ptr[idx]; }
 
-  constexpr T& at(std::size_t idx) {
+  T& at(std::size_t idx) {
     if (idx >= _length)
       throw std::out_of_range("");
     return _ptr[idx];
   }
-  constexpr T const& at(std::size_t idx) const {
+  T const& at(std::size_t idx) const {
     if (idx >= _length)
       throw std::out_of_range("");
     return _ptr[idx];
   }
-  constexpr T* data() { return _ptr; }
+  T* data() { return _ptr; }
 
   // Modifiers 
-  constexpr void clear() {
+  void clear() {
     _length = 0;
   }
-  constexpr iterator insert(iterator pos, const T& value) {
+  iterator insert(iterator pos, const T& value) {
     std::size_t index = pos - _ptr;
 
     if (invalid_capacity()) {
@@ -92,33 +88,33 @@ public:
 
     return _ptr + index;
   }
-  constexpr void erase(iterator it) {
+  void erase(iterator it) {
     for (; it != end(); it++) {
       auto it_temp = it + 1;
       *it = std::move(*it_temp);
     }
     _length--;
   }
-  constexpr void push_back(T obj) {
+  void push_back(T obj) {
     if (invalid_capacity())
       reallocate(_capacity * 3);
     _ptr[_length++] = obj;
   }
 
   // Iterators 
-  constexpr iterator begin() noexcept { return _ptr; }
-  constexpr const_iterator cbegin() const noexcept { return _ptr; }
-  constexpr iterator end() noexcept { return _ptr + _length; }
-  constexpr const_iterator cend() const noexcept { return _ptr + _length; }
-  constexpr reverse_iterator rbegin() { return reverse_iterator(_ptr + _length); }
-  constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(_ptr + _length); }
-  constexpr reverse_iterator rend() { return reverse_iterator(_ptr); }
-  constexpr const_reverse_iterator crend() const { return const_reverse_iterator(_ptr); }
+  iterator begin() noexcept { return _ptr; }
+  const_iterator cbegin() const noexcept { return _ptr; }
+  iterator end() noexcept { return _ptr + _length; }
+  const_iterator cend() const noexcept { return _ptr + _length; }
+  reverse_iterator rbegin() { return reverse_iterator(_ptr + _length); }
+  const_reverse_iterator crbegin() const { return const_reverse_iterator(_ptr + _length); }
+  reverse_iterator rend() { return reverse_iterator(_ptr); }
+  const_reverse_iterator crend() const { return const_reverse_iterator(_ptr); }
   // Capacity
-  constexpr bool empty() const noexcept { return _length == 0; }
-  constexpr std::size_t size() const noexcept { return _length; }
-  constexpr void reserve() {}
-  constexpr std::size_t capacity() const noexcept { return _capacity; }
+  bool empty() const noexcept { return _length == 0; }
+  std::size_t size() const noexcept { return _length; }
+  void reserve() {}
+  std::size_t capacity() const noexcept { return _capacity; }
   friend bool operator==(const Vector& lhs, const Vector& rhs) {
     if (lhs.size() != rhs.size())
       return false;
