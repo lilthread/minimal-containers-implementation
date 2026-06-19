@@ -36,7 +36,7 @@ add_executable(tests
     tests/main.cpp
     tests/vector_test.cpp
     tests/unique_ptr_test.cpp
-
+    tests/shared_ptr_test.cpp
 )
 
 target_link_libraries(tests
