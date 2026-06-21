@@ -14,10 +14,6 @@ target_include_directories(headerfiles
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_compile_features(headerfiles
-  INTERFACE
-    cxx_std_11
-)
 
 include(FetchContent)
 
@@ -34,9 +30,10 @@ enable_testing()
 
 add_executable(tests
     tests/main.cpp
-    tests/vector_test.cpp
-    tests/unique_ptr_test.cpp
-    tests/shared_ptr_test.cpp
+    tests/VectorTest.cpp
+    tests/UniquePtrTest.cpp
+    tests/SharedPtrTest.cpp
+    tests/RingBufferTest.cpp
 )
 
 target_link_libraries(tests
