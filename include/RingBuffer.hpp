@@ -2,8 +2,6 @@
 #include <array>
 #include <cstddef>
 #include <sys/types.h>
-#include <type_traits>
-
 namespace not_std {
 template <class event, std::size_t capacity>
 class RingBuffer final {
