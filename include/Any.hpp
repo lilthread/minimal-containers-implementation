@@ -1,68 +1,101 @@
 #pragma once
-#include <any>
-#include <array>
-#include <cstddef>
-#include <memory>
-#include <new>
+#include <typeinfo>
+#include <utility>
 
-// NOT DONE
 namespace not_std {
-// FORWARD DECLARE 
-template<class> class Any;
-template <class U> inline U any_cast(const Any<U>&);
-template <class T>
 class Any final {
-  using DataPtr = std::unique_ptr<void, void(*)(void*)>;
-  static constexpr std::size_t SOO_SIZE = 64;
-  static constexpr bool IS_SMALL_OBJ = sizeof(T) <= SOO_SIZE; 
 public:
-  ~Any() noexcept = default;
-  constexpr Any() noexcept = default;
-  constexpr Any(T obj) noexcept {
-    if constexpr (IS_SMALL_OBJ) {
-      T* ptr = std::construct_at(reinterpret_cast<T*>(_sooBuffer.data()), obj);
-      _data = DataPtr(static_cast<void*>(ptr) , [](void* p) -> void {
-        std::launder(static_cast<T*>(p))->~T();
-      });
-    } else {
-      T* ptr = new T(obj);
-      _data = DataPtr(static_cast<void*>(ptr), [](void* p) -> void {
-        delete static_cast<T*>(p);
-      });
-    }
-    _type = &typeid(T);
+  constexpr Any() = default;
+
+  template<class T>
+  Any(T value) {
+    emplace<T>(std::move(value));
   }
-  void reset() noexcept {
-    _data.reset();
-    _type = &typeid(void);
+
+  Any(const Any& other) {
+    if (other._ops)
+      other._ops->copy(other._ptr, *this);
   }
-  bool has_value() const noexcept { return _data != nullptr; }
-  constexpr const std::type_info& type() const noexcept { return *_type; }
-  template<class U>
-  friend inline U any_cast(const Any<U>& op);
-  template <class Value>
-  Any& operator=(Value&& rhs) noexcept {
-    _data.reset();
-    _data = DataPtr{static_cast<void*>(rhs), [](void*){}};
-    _type = &typeid(Value);
+
+  Any(Any&& other) noexcept {
+    if (other._ops)
+      other._ops->move(other._ptr, *this);
+  }
+
+  ~Any() { reset(); }
+
+  Any& operator=(Any other) noexcept {
+    if (&other == this)
+      return *this;
+    swap(other);
     return *this;
   }
-  // TODO:
-  Any& operator=(Any&& other) = delete;
-  Any& operator=(const Any& other) = delete;
-  Any(const Any& other) = delete;
-  Any(Any&& other) = delete;
+
+  template<class T>
+  void emplace(T value) noexcept {
+    reset();
+    _ptr = new T(std::move(value));
+
+    static constexpr Ops table {
+      [](void* p) noexcept { delete static_cast<T*>(p); },
+
+      [](const void* p, Any& dst) noexcept { dst.emplace(*static_cast<const T*>(p)); },
+
+      [](void* p, Any& dst) noexcept {
+        dst._ptr = std::exchange(p, nullptr);
+        dst._ops = &table;
+      },
+
+      [] noexcept -> const std::type_info& { return typeid(T); }
+    };
+    _ops = &table;
+  }
+
+  void reset() noexcept {
+    if (_ops)
+      _ops->destroy(_ptr);
+    _ptr = nullptr;
+    _ops = nullptr;
+  }
+  constexpr bool has_value() const noexcept { return _ptr != nullptr; }
+
+  constexpr const std::type_info& type() const noexcept {
+    return _ops ? _ops->type() : typeid(void);
+  }
+
+  void swap(Any& other) noexcept {
+    std::swap(_ptr, other._ptr);
+    std::swap(_ops, other._ops);
+  }
+  friend void swap(Any& lhs, Any& rhs) noexcept { lhs.swap(rhs); }
+
+  template<class T>
+  friend T& any_cast(Any&);
+
+  template<class T>
+  friend const T& any_cast(const Any&);
 private:
-  DataPtr _data{nullptr, [](void*){}};
-  const std::type_info* _type = &typeid(void);
-  alignas(std::max_align_t) std::array<std::byte, SOO_SIZE> _sooBuffer{};
+  struct Ops final {
+    void (*destroy)(void*) noexcept;
+    void (*copy)(const void*, Any&) noexcept;
+    void (*move)(void*, Any&) noexcept;
+    const std::type_info& (*type)() noexcept;
+  };
+  void* _ptr{};
+  const Ops* _ops{};
 };
 
-template<class U>
-inline U any_cast(const Any<U>& op) {
-  if (op.type() != typeid(U))
-    throw std::bad_any_cast{};
-  return *static_cast<const U*>(op._data.get());
-}
+template<class T>
+T& any_cast(Any& a) {
+  if (a.type() != typeid(T))
+    throw std::bad_cast{};
+  return *static_cast<T*>(a._ptr);
 }
 
+template<class T>
+const T& any_cast(const Any& a) {
+  if (a.type() != typeid(T))
+    throw std::bad_cast{};
+  return *static_cast<const T*>(a._ptr);
+}
+}
