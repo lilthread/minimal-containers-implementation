@@ -35,6 +35,7 @@ add_executable(tests
     tests/SharedPtrTest.cpp
     tests/RingBufferTest.cpp
     tests/AnyTest.cpp
+    tests/ListTest.cpp
 )
 
 target_link_libraries(tests

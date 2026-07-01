@@ -1,12 +1,13 @@
 #pragma once
 #include <cstddef>
+#include <memory>
 #include <utility>
 
 namespace not_std {
-template <class T>
+template <class T, class Deleter = std::default_delete<T>>
 class UniquePtr final {
 public:
-  ~UniquePtr() { delete _ptr; }
+  ~UniquePtr() { Deleter{}(_ptr); }
   constexpr UniquePtr() noexcept = default;
   UniquePtr(T* ptr) noexcept : _ptr(ptr) {}
 
@@ -14,7 +15,7 @@ public:
   UniquePtr& operator=(UniquePtr&& other) noexcept {
     if (this == &other)
       return *this;
-    delete _ptr;
+    Deleter{}(_ptr);
 
     _ptr = std::exchange(other._ptr, nullptr);
     return *this;
@@ -33,7 +34,7 @@ public:
     return ptr;
   } 
   void reset(T* new_ptr = nullptr) noexcept {
-    delete _ptr;
+    Deleter{}(_ptr);
     _ptr = new_ptr;
   }
   void swap(UniquePtr& other) noexcept {
@@ -61,10 +62,10 @@ UniquePtr<T[]> MakeUniqueArray(std::size_t n) {
   return UniquePtr<T[]>(new T[n]());
 }
 
-template <class T>
-class UniquePtr<T[]> final {
+template <class T, class Deleter>
+class UniquePtr<T[], Deleter> final {
 public:
-  ~UniquePtr() { delete[] _ptr; }
+  ~UniquePtr() { Deleter{}(_ptr); }
   constexpr UniquePtr() noexcept = default;
   UniquePtr(T* ptr) noexcept : _ptr(ptr) {}
 
@@ -72,7 +73,7 @@ public:
   UniquePtr& operator=(UniquePtr&& other) noexcept {
     if (this == &other)
       return *this;
-    delete[] _ptr;
+    Deleter{}(_ptr);
     _ptr = other._ptr;
     other._ptr = nullptr;
     return *this;
@@ -90,7 +91,7 @@ public:
     return ptr;
   } 
   void reset(T* new_ptr = nullptr) noexcept {
-    delete[] _ptr;
+    Deleter{}(_ptr);
     _ptr = new_ptr;
   }
   void swap(UniquePtr& other) noexcept {
